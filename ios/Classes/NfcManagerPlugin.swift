@@ -753,6 +753,12 @@ private func convert(_ value: NFCNDEFTag, _ completionHandler: @escaping (TagPig
 
   value.queryNDEFStatus { status, capacity, error in
     if let error = error {
+      let nsError = error as NSError
+      if nsError.domain == "NFCError" && nsError.code == 403 {
+        // Tag is valid but has no NDEF content - return tag without cached message
+        completionHandler(pigeon, nil)
+        return
+      }
       completionHandler(nil, error)
       return
     }
@@ -766,6 +772,15 @@ private func convert(_ value: NFCNDEFTag, _ completionHandler: @escaping (TagPig
     }
     value.readNDEF { message, error in
       if let error = error {
+        // NFCError Code 403 means "NDEF tag does not contain any NDEF message"
+        // This should not be treated as a fatal error - the tag is valid but empty.
+        // We return the tag with nil cachedNdefMessage to allow immediate user feedback.
+        let nsError = error as NSError
+        if nsError.domain == "NFCError" && nsError.code == 403 {
+          // Tag is valid but has no NDEF content - return tag without cached message
+          completionHandler(pigeon, nil)
+          return
+        }
         completionHandler(nil, error)
         return
       }
